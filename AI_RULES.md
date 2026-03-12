@@ -2,7 +2,7 @@
 # AI_RULES.md — AI 执行规则文件
 # ============================================================
 # 所有者: XZY0626
-# 版本: 1.1.0
+# 版本: 1.2.0
 # 创建日期: 2026-03-11
 # 最后更新: 2026-03-12
 # 适用范围: 所有AI助手（小跃/Claude/GPT/Gemini/OpenClaw等）
@@ -60,6 +60,30 @@
   - **GitHub仓库中的任何文件**（包括代码、配置、文档、脚本等）
 - **脱敏规则**：`sk-d647569d...b352` 格式，保留前8位+末4位，中间用 `...` 替代
 - 凭证仅允许写入**本地配置文件**（如 `openclaw.json`），且文件权限必须设为 `600`（Linux）或仅当前用户可读（Windows）
+
+### L0.3.1 代码中的密钥管理（强制）
+
+- **禁止在代码中硬编码任何密钥**：所有API Key、Secret、Token、密码等凭证**必须**通过以下方式之一管理：
+  - 环境变量：`os.environ.get("KEY_NAME", "YOUR_KEY_PLACEHOLDER")`
+  - 本地 `.env` 文件（已在 `.gitignore` 中排除）
+  - 系统密钥管理工具（如 Windows Credential Manager、Linux keyring）
+- **代码模板规范**：生成或修改包含凭证的代码时，必须使用环境变量占位符，示例：
+  ```python
+  # ✅ 正确
+  api_key = os.environ.get("OPENROUTER_API_KEY", "YOUR_OPENROUTER_API_KEY")
+  # ❌ 禁止
+  api_key = "sk-or-v1-abc123..."
+  ```
+- **SSH/VM密码同样适用**：虚拟机密码、SSH密码等也不得硬编码在脚本中
+- **Git历史记录意识**：即使当前文件已脱敏，若密钥曾经存在于git历史中，GitHub Secret Scanning仍会报警。发现此类告警时必须：
+  1. 提醒用户该密钥已泄露，建议**立即轮换（Revoke + Regenerate）**
+  2. 告知用户需在GitHub仓库的 Security > Secret scanning 页面手动关闭告警
+  3. 若密钥已轮换，可选择标记为 "Revoked" 关闭告警
+- **新建脚本检查清单**：每次创建涉及API调用的新脚本时，必须在提交前自检：
+  - [ ] 所有密钥使用环境变量
+  - [ ] `.env` 文件已加入 `.gitignore`
+  - [ ] 无硬编码的密码、Token、Secret
+  - [ ] 无硬编码的SSH/VM登录凭证
 
 ### L0.5 GitHub 仓库安全审查（强制）
 

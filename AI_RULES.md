@@ -2,7 +2,7 @@
 # AI_RULES.md — AI 执行规则文件
 # ============================================================
 # 所有者: XZY0626
-# 版本: 2.2.0
+# 版本: 2.3.0
 # 创建日期: 2026-03-11
 # 最后更新: 2026-03-13
 # 适用范围: 所有AI助手（小跃/Claude/GPT/Gemini/OpenClaw/WorkBuddy等）
@@ -85,6 +85,18 @@
   - [ ] `.env` 文件已加入 `.gitignore`
   - [ ] 无硬编码的密码、Token、Secret
   - [ ] 无硬编码的SSH/VM登录凭证
+
+### L0.3.3 第三方工具配置文件豁免说明
+
+> **适用场景**：当第三方工具（如 OpenClaw）的架构决定了 API Key **只能**写入其专属配置文件，无法通过环境变量传入时。
+
+- **豁免条件**（需同时满足）：
+  1. 该工具官方仅支持配置文件方式读取凭证，无环境变量接口
+  2. 配置文件权限已设置为 `600`（Linux）或仅当前用户可读写（Windows）
+  3. 配置文件**绝对不得**上传到 GitHub 或任何公开平台
+  4. 配置文件路径已加入 `.gitignore`
+- **典型场景**：`~/.openclaw/openclaw.json` 中的 API Key 配置属于此豁免范围
+- **豁免不适用于**：自行开发的脚本、可通过环境变量传参的工具、任何会被提交到版本控制的文件
 
 ### L0.3.2 开放平台上传强制脱敏（强制）
 
@@ -220,6 +232,50 @@
   - Linux: `chmod 600`
   - Windows: 仅当前用户有读写权限
 - 脚本文件设置为可执行但不可被其他用户修改
+
+### L1.5 OpenClaw 运维安全规范
+
+> **适用范围**：所有涉及 OpenClaw Gateway 的配置、启动、升级、访问操作。
+
+#### 网络绑定（强制）
+- OpenClaw Gateway **必须**绑定本地回环地址，配置项为：
+  ```json
+  { "gateway": { "bind": "loopback" } }
+  ```
+- **禁止**使用 `0.0.0.0` 或局域网 IP 直接暴露 Gateway，无论是否在内网环境
+- 远程访问必须通过受控通道（当前方案：Tailscale Serve HTTPS），不得直接开放端口
+
+#### HTTPS 访问（强制）
+- 生产环境访问 OpenClaw Control UI **必须通过 HTTPS**，原因：
+  - v2026.3.11+ 的设备身份验证 API 仅在 Secure Context（HTTPS 或 localhost）下可用
+  - 纯 HTTP 局域网访问会导致"device identity required"认证失败
+- 当前采用 Tailscale Serve 方案（`gateway.tailscale.mode = serve`），无需自购域名或证书
+
+#### 日志脱敏（强制）
+- OpenClaw 运行时日志必须配置敏感字段脱敏，在 `openclaw.json` 中加入：
+  ```json
+  {
+    "logging": {
+      "redact": ["api_key", "token", "password", "secret"]
+    }
+  }
+  ```
+- 此配置防止 API Key、Token 等明文出现在 Gateway 日志文件中
+
+#### 版本升级注意事项
+- OpenClaw 升级可能带来以下变化，升级后必须逐项验证：
+  - API 路径变化（如 v2026.3.11 将 `/api/v1/...` 改为 `/...`）
+  - 前端架构变化（可能影响已自定义的前端文件）
+  - 新增安全机制（如设备身份验证）需重新评估配置兼容性
+- 升级前必须备份 `~/.openclaw/openclaw.json`（遵循 L1.3 备份规则）
+
+#### 进程管理
+- OpenClaw gateway 以 nohup 后台方式运行，进程名超过 15 字符
+- 重启时必须使用 `pgrep -f openclaw-gateway`（而非 `pgrep openclaw-gateway`），否则找不到进程
+- 标准重启命令：
+  ```bash
+  kill $(pgrep -f openclaw-gateway) && sleep 2 && nohup openclaw gateway start > ~/openclaw.log 2>&1 &
+  ```
 
 ---
 
@@ -361,6 +417,16 @@ Skill名称: xxx
   - 是否发起了未声明的网络请求
   - 是否尝试提升权限
 - 发现异常行为立即暂停并通知用户
+
+### L3.3 已安装 Skill 定期审查
+
+- 已安装的 Skill 需每月进行一次例行安全回顾，检查内容：
+  1. **维护状态**：该 Skill 是否仍在积极维护（超过 3 个月无更新需提醒用户评估是否继续使用）
+  2. **版本安全**：是否有新版本发布，新版本是否修复了安全漏洞
+  3. **行为一致性**：Skill 运行行为是否与安装时声明的权限范围一致，有无超出声明的异常操作
+  4. **依赖漏洞**：Skill 依赖的第三方包是否存在已知 CVE 漏洞
+- AI 在每次较大版本升级（如 OpenClaw 主版本更新）后，应主动提醒用户对已安装 Skill 进行一次完整审查
+- 发现问题的处理优先级：立即停用 > 等待修复版本 > 继续使用并记录风险
 
 ### L3.4 外部内容安全读取规范（Prompt Injection 防范）
 
@@ -607,6 +673,7 @@ C:\Program Files (x86)\         # 32位程序目录
 | 2.0.0 | 2026-03-13 | **重大安全更新**：新增 L0.6 API Key零接触规则、L0.7 用户手动输入规则、L0.8 GitHub仓库前置审查规则、L5.2 重大安全事故通报规则（原L5.2-L5.5顺移为L5.3-L5.6）；触发原因：openclaw-config仓库多个文件存在虚拟机密码硬编码泄露事故 | XZY0626 + WorkBuddy |
 | 2.1.0 | 2026-03-13 | 补充 L0.3.2 开放平台上传强制脱敏规则：明确虚拟机密码专项保护、日志脱敏格式、所有开放渠道上传前脱敏要求 | XZY0626 + WorkBuddy |
 | 2.2.0 | 2026-03-13 | 新增 L3.4 外部内容安全读取规范：Prompt Injection 防范、隐藏文字识别、外部操作建议处理原则及警示格式 | XZY0626 + WorkBuddy |
+| 2.3.0 | 2026-03-14 | 新增 L0.3.3 第三方工具配置文件豁免说明（OpenClaw场景）；新增 L1.5 OpenClaw运维安全规范（网络绑定、HTTPS强制、日志脱敏、升级注意事项、进程管理）；新增 L3.3 已安装Skill定期审查规则 | XZY0626 + WorkBuddy |
 
 ---
 

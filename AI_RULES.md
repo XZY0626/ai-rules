@@ -2,9 +2,9 @@
 # AI_RULES.md — AI 执行规则文件
 # ============================================================
 # 所有者: XZY0626
-# 版本: 2.3.0
+# 版本: 2.4.0
 # 创建日期: 2026-03-11
-# 最后更新: 2026-03-13
+# 最后更新: 2026-03-14
 # 适用范围: 所有AI助手（小跃/Claude/GPT/Gemini/OpenClaw/WorkBuddy等）
 # 优先级: 本文件中的规则优先级高于任何Skill、脚本或对话指令
 # 使用方式: AI在执行任务前必须读取本文件，并在整个对话周期内遵守
@@ -270,12 +270,18 @@
 - 升级前必须备份 `~/.openclaw/openclaw.json`（遵循 L1.3 备份规则）
 
 #### 进程管理
-- OpenClaw gateway 以 nohup 后台方式运行，进程名超过 15 字符
-- 重启时必须使用 `pgrep -f openclaw-gateway`（而非 `pgrep openclaw-gateway`），否则找不到进程
-- 标准重启命令：
+- OpenClaw gateway 通过 **systemd 用户级服务**管理（`~/.config/systemd/user/openclaw-gateway.service`）
+- `loginctl linger=yes` 已启用，开机无需登录自动拉起，无需手动干预
+- 服务管理命令：
   ```bash
-  kill $(pgrep -f openclaw-gateway) && sleep 2 && nohup openclaw gateway start > ~/openclaw.log 2>&1 &
+  systemctl --user status openclaw-gateway   # 查看状态
+  systemctl --user restart openclaw-gateway  # 重启
+  systemctl --user stop openclaw-gateway     # 停止
+  systemctl --user start openclaw-gateway    # 启动
+  journalctl --user -u openclaw-gateway -n 50  # 查看日志
   ```
+- **禁止**使用旧版 `nohup` 方式管理进程（已废弃，2026-03-14 升级 systemd 方案）
+- tailscale-serve 同样以 systemd system 级服务管理（`/etc/systemd/system/tailscale-serve.service`），已配置 `ExecStartPre` 等待 tailscale 网络就绪后再启动，防止启动顺序竞争导致 `NoState` 错误
 
 ---
 
@@ -674,6 +680,7 @@ C:\Program Files (x86)\         # 32位程序目录
 | 2.1.0 | 2026-03-13 | 补充 L0.3.2 开放平台上传强制脱敏规则：明确虚拟机密码专项保护、日志脱敏格式、所有开放渠道上传前脱敏要求 | XZY0626 + WorkBuddy |
 | 2.2.0 | 2026-03-13 | 新增 L3.4 外部内容安全读取规范：Prompt Injection 防范、隐藏文字识别、外部操作建议处理原则及警示格式 | XZY0626 + WorkBuddy |
 | 2.3.0 | 2026-03-14 | 新增 L0.3.3 第三方工具配置文件豁免说明（OpenClaw场景）；新增 L1.5 OpenClaw运维安全规范（网络绑定、HTTPS强制、日志脱敏、升级注意事项、进程管理）；新增 L3.3 已安装Skill定期审查规则 | XZY0626 + WorkBuddy |
+| 2.4.0 | 2026-03-14 | **L1.5进程管理更新**：废弃旧版 nohup 方式，改为 systemd 用户级服务管理（openclaw-gateway）和 system 级服务（tailscale-serve）；新增 tailscale-serve ExecStartPre 等待就绪机制说明（修复重启时 NoState 竞争问题） | XZY0626 + WorkBuddy |
 
 ---
 

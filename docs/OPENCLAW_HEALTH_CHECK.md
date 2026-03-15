@@ -288,6 +288,7 @@ echo "=== Done ==="
 | 2026-03-14 | gateway 从 nohup 迁移到 systemd 用户级服务 | ✅ 已修复 | ~/.config/systemd/user/openclaw-gateway.service |
 | 2026-03-13 | tailscale-serve 与 openclaw-gateway 启动顺序竞争 | ✅ 已修复 | tailscale-serve.service 加 ExecStartPre 等待网络就绪 |
 | 2026-03-13 | gateway.bind=loopback 导致外部无法访问 | ✅ 已修复 | 通过 Tailscale serve 代理，外部走 Tailscale HTTPS |
+| 2026-03-15 | tailscale-serve systemctl 显示 inactive 误以为服务挂了 | ✅ 已确认正常 | 该服务为 oneshot 类型，ExecStart 执行后正常退出，`tailscale serve --bg` 后台持续运行，HTTPS 代理正常工作 |
 
 ---
 

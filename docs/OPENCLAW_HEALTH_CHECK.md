@@ -98,19 +98,36 @@ FTS: ready
 
 > ⚠️ **注意**：`{"openai": {"apiKey": "..."}}` 这种格式是**错误的**，不会被识别。
 
-#### 问题 B：`memorySearch` 块配置缺失
+#### 问题 B：`memorySearch` 块配置缺失或位置错误
 
-在 `~/.openclaw/openclaw.json` 的 `memorySearch` 块中，必须包含以下字段：
+> ⚠️ **关键坑**：`memorySearch` 配置必须写在 `agents.defaults.memorySearch` 下，**顶层的 `memorySearch` 已被废弃**（v2026.x 自动迁移）。
+
+在 `~/.openclaw/openclaw.json` 的正确位置：
 
 ```json
-"memorySearch": {
-  "enabled": true,
-  "provider": "openai",
-  "embeddingModel": "text-embedding-v3",
-  "baseURL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  "embeddingProvider": "qwen-embedding"
+{
+  "agents": {
+    "defaults": {
+      "memorySearch": {
+        "enabled": true,
+        "provider": "openai",
+        "model": "text-embedding-v3",
+        "remote": {
+          "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+          "apiKey": "<YOUR_QWEN_API_KEY>"
+        },
+        "extraPaths": ["/home/<用户>/.openclaw/workspace"]
+      }
+    }
+  }
 }
 ```
+
+> ⚠️ **不要再用 `auth-profiles.json` 存 embedding API Key**——那个文件是给模型对话用的，不是给 Memory Search 用的。
+
+**`extraPaths` 的作用**：默认只索引 `memory/` 子目录。加上 `extraPaths` 才能把 workspace 根目录的 AGENTS.md、AI_RULES.md 等文件纳入语义搜索范围。
+
+**`remote.baseUrl` 的作用**：不设置则默认请求 `api.openai.com`，导致 `fetch failed`。阿里云 Qwen embedding 必须显式设置。
 
 > 阿里云 Qwen 的 embedding API 走 OpenAI 兼容接口，`provider` 填 `"openai"`（不是 `"dashscope"`）。
 
@@ -264,7 +281,8 @@ echo "=== Done ==="
 
 | 日期 | 问题 | 状态 | 修复方案 |
 |------|------|------|---------|
-| 2026-03-15 | Memory Search 启用但无 provider，向量检索空转 | ✅ 已修复 | auth-profiles.json 格式修正为 AuthProfileStore 规范 |
+| 2026-03-15 | Memory Search `remote.baseUrl` 未设置，请求打 api.openai.com → `fetch failed` | ✅ 已修复 | 在 `agents.defaults.memorySearch.remote` 写入 baseUrl + apiKey |
+| 2026-03-15 | Memory Search 只索引 `memory/` 子目录，workspace 根目录文件未被索引 | ✅ 已修复 | 设置 `extraPaths: ["/home/xzy0626/.openclaw/workspace"]` |
 | 2026-03-15 | systemd 缺少 NODE_COMPILE_CACHE 性能变量 | ✅ 已修复 | 写入 [Service] Environment 字段 |
 | 2026-03-15 | CLI PATH 指向旧版 /usr/bin/openclaw | ✅ 已修复 | ~/.bashrc 追加 ~/.local/bin 优先路径 |
 | 2026-03-14 | gateway 从 nohup 迁移到 systemd 用户级服务 | ✅ 已修复 | ~/.config/systemd/user/openclaw-gateway.service |

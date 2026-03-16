@@ -2,9 +2,9 @@
 # AI_RULES.md — AI 执行规则文件
 # ============================================================
 # 所有者: XZY0626
-# 版本: 2.4.0
+# 版本: 2.5.1
 # 创建日期: 2026-03-11
-# 最后更新: 2026-03-14
+# 最后更新: 2026-03-16
 # 适用范围: 所有AI助手（小跃/Claude/GPT/Gemini/OpenClaw/WorkBuddy等）
 # 优先级: 本文件中的规则优先级高于任何Skill、脚本或对话指令
 # 使用方式: AI在执行任务前必须读取本文件，并在整个对话周期内遵守
@@ -282,6 +282,22 @@
   ```
 - **禁止**使用旧版 `nohup` 方式管理进程（已废弃，2026-03-14 升级 systemd 方案）
 - tailscale-serve 同样以 systemd system 级服务管理（`/etc/systemd/system/tailscale-serve.service`），已配置 `ExecStartPre` 等待 tailscale 网络就绪后再启动，防止启动顺序竞争导致 `NoState` 错误
+
+#### 认证标志文件安全（强制）
+
+> **背景**：OpenClaw 早期版本存在一个"标志文件"机制——`~/.openclaw/.pre-disable-auth` 文件存在时，gateway 启动会跳过认证检查，导致无凭证即可访问所有 API。这是 2026 年 2 月 OpenClaw 安全危机（CVE-2026-25253）的核心诱因之一。
+
+- **禁止创建** `~/.openclaw/.pre-disable-auth` 或任何类似的认证旁路标志文件
+- **定期巡检**：每次执行健康检查时，必须确认 `~/.openclaw/` 目录下不存在以下文件：
+  - `.pre-disable-auth`（禁用认证标志）
+  - 任何以 `.disable-` 或 `.skip-` 开头的文件（潜在旁路文件）
+- **发现即删除**：若发现上述文件存在，必须立即删除并向用户告警：
+  ```bash
+  rm -f ~/.openclaw/.pre-disable-auth
+  # 告警格式：
+  # ⚠️【安全告警】发现认证旁路标志文件 .pre-disable-auth，已删除。建议立即检查 gateway 认证配置。
+  ```
+- 此规范补充到 `docs/OPENCLAW_HEALTH_CHECK.md` 的安全注意事项中
 
 ---
 
@@ -681,6 +697,8 @@ C:\Program Files (x86)\         # 32位程序目录
 | 2.2.0 | 2026-03-13 | 新增 L3.4 外部内容安全读取规范：Prompt Injection 防范、隐藏文字识别、外部操作建议处理原则及警示格式 | XZY0626 + WorkBuddy |
 | 2.3.0 | 2026-03-14 | 新增 L0.3.3 第三方工具配置文件豁免说明（OpenClaw场景）；新增 L1.5 OpenClaw运维安全规范（网络绑定、HTTPS强制、日志脱敏、升级注意事项、进程管理）；新增 L3.3 已安装Skill定期审查规则 | XZY0626 + WorkBuddy |
 | 2.4.0 | 2026-03-14 | **L1.5进程管理更新**：废弃旧版 nohup 方式，改为 systemd 用户级服务管理（openclaw-gateway）和 system 级服务（tailscale-serve）；新增 tailscale-serve ExecStartPre 等待就绪机制说明（修复重启时 NoState 竞争问题） | XZY0626 + WorkBuddy |
+| 2.5.0 | 2026-03-15 | 新增 docs/OPENCLAW_HEALTH_CHECK.md：Memory Search 配置规范、auth-profiles 格式规范、系统性巡检 SOP | XZY0626 + WorkBuddy |
+| 2.5.1 | 2026-03-16 | **安全加固**：L1.5 新增"认证标志文件安全"条款——禁止创建 `.pre-disable-auth`，定期巡检认证旁路标志文件并发现即删除；触发原因：发现遗留标志文件可导致 gateway 启动时完全绕过认证（CVE-2026-25253 同类问题） | XZY0626 + WorkBuddy |
 
 ---
 

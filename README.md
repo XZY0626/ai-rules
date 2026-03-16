@@ -38,7 +38,9 @@ ai-rules/
 | v2.1.0 | 2026-03-13 | 新增开放平台上传强制脱敏规则 |
 | v2.2.0 | 2026-03-13 | 新增外部内容安全读取规范（Prompt Injection 防范） |
 | v2.3.0 | 2026-03-14 | 新增 OpenClaw 运维安全规范、第三方工具配置豁免说明、已安装Skill定期审查 |
+| v2.4.0 | 2026-03-14 | L1.5 进程管理升级：openclaw-gateway 改 systemd 用户级服务，tailscale-serve 修复启动竞争 |
 | v2.5.0 | 2026-03-15 | 新增 docs/OPENCLAW_HEALTH_CHECK.md：Memory Search 配置规范、auth-profiles 格式规范、系统性巡检 SOP |
+| v2.5.1 | 2026-03-16 | 安全加固：L1.5 新增认证标志文件安全条款，禁止 `.pre-disable-auth` 旁路文件，健康检查文档同步更新 |
 
 ## 🤖 主力 AI 助手
 

@@ -298,6 +298,13 @@ echo "=== Done ==="
 2. **gateway.bind=loopback**：对外不暴露 18789 端口，只通过 Tailscale HTTPS 访问
 3. **SSH 私钥**：`E:\Application\WorkBuddy\id_vm` 权限严格限制，仅允许当前用户读写
 4. **Tailscale 域名**：在公开文档中脱敏为 `[TAILSCALE_HOSTNAME].[TAILNET_DOMAIN]`
+5. **认证标志文件检查（重要）**：每次巡检时必须确认 `~/.openclaw/` 下**不存在**以下文件：
+   - `.pre-disable-auth` — 存在时 gateway 启动会跳过认证，任何进程均可无凭证访问所有 API
+   - 任何以 `.disable-` 或 `.skip-` 开头的标志文件
+   ```bash
+   ls ~/.openclaw/.pre-disable-auth 2>/dev/null && echo "⚠️ 警告：认证旁路文件存在！" || echo "✅ 认证旁路文件不存在"
+   ```
+   若文件存在：立即执行 `rm -f ~/.openclaw/.pre-disable-auth` 并重启 gateway，同时向用户告警
 
 ---
 
